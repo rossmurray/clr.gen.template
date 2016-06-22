@@ -1,15 +1,23 @@
 import * as mainLoop from "mainloop.js";
 import * as husl from "husl";
 import "../core/utility.js";
+import FunctionBuilder from '../core/functionBuilder';
 
 var totalTimeMs = 0;
 var carrierFrequency = 1;
 var carrier = configFunction(Math.sin, 1, 0, 0, 1);
-var triangle = x => Math.abs(((0.5 + x) % 1) - 0.5) * 2;
+
 var sawtooth = x => x - Math.floor(x);
 var context;
 var canvas;
 var graph = {};
+
+const timeUnit = periodMs => getTimeFromPeriod(periodMs);
+const timeOscillator = x => triangle(timeUnit(x));
+const triangle = x => Math.abs(((0.5 + x) % 1) - 0.5) * 2;
+const sine01 = x => { const result = Math.sin(x * Math.PI * 2) * 0.5 + 0.5; return result > 1 ? 1 : result; }
+const timeSine = x => sine01(timeUnit(x));
+const testf = x => sine01(x * timeUnit(x) + 2000);
 
 export function start() {
     canvas = document.getElementById('canvas');
@@ -34,16 +42,23 @@ export function start() {
 
 function mainUpdate(deltaMs) {
     totalTimeMs += deltaMs;
-    var mint = 0.5;
-    var maxt = 0.7;
-    var zoom = -6;
-    //var t = (getTimeFromPeriod(10000) * (maxt - mint) + mint);
-    var t1 = carrier(getTimeFromPeriod(17000)) * (maxt - mint) + mint;
-    var t2 = carrier(getTimeFromPeriod(13000)) * (maxt - mint) + mint;
-    var t3 = carrier(getTimeFromPeriod(21000)) * (maxt - mint) + mint;
-    var t4 = carrier(getTimeFromPeriod(20000)) * (maxt - mint) + mint;
-    //graph.points = graphFunc(x => triangle(t1 * x), zoom);
-    graph.points = graphFunc(x => (Math.sin((t3 * 20 + 10) + t1 * x * Math.sin(t2 * x * Math.cos(t3 * x * Math.sin(t4 * x))))) / 2 + 0.5, zoom);
+    var zoom = 1;
+    const modulator = new FunctionBuilder(x => x * sine01(x))
+        .setPeriod(3100)
+        .setRange(0.7, 0.9)
+        .getFx();
+    const sine1 = new FunctionBuilder(x => x * timeSine(33011))
+        .setPeriod(2377)
+        .setRange(0.4, 0.6)
+        .setFrequencyModulation(modulator)
+        //.setPhaseShift(timeSine(40000))
+        .getFx();
+    const sine2 = new FunctionBuilder(x => x * sine01(x))
+        .setPeriod(2000)
+        .setFrequencyModulation(sine1)
+        //.setPhaseShift(timeSine(89600))
+        .getFx();
+    graph.points = graphFunc(x => sine2(x), zoom);
 }
 
 function mainDraw(interpolationPercentage) {
@@ -103,13 +118,16 @@ function fmodulate(f, g) {
     return x => f(g * x);
 }
 
-function graphFunc(func, zoomFactor) {
-    var zoom = -1 * zoomFactor;
-    var resolution = 2000;
+function graphFunc(func, zoomFactor, resolution = 500) {
+    //var zoom = -1 * zoomFactor;
+    //resolution = Math.floor(new FunctionBuilder(x => timeSine(24701)).setRange(15, 40).getFx()(0));
     var points = [];
     for(var i = 0; i < resolution; i++) {
         var x = i / resolution;
-        var y = func(x * zoom);
+        if(i == resolution - 1) {
+            x = 1;
+        }
+        var y = func(x);
         var point = {x, y};
         points.push(point);
     }

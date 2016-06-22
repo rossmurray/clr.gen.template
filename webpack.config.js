@@ -11,7 +11,6 @@ module.exports = {
       publicPath: '/',
       filename: 'index.js'
   },
-  debug: true,
   devtool: 'source-map',
   module: {
     loaders: [
