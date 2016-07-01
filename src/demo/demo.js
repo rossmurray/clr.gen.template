@@ -15,9 +15,13 @@ var graph = {};
 const timeUnit = periodMs => getTimeFromPeriod(periodMs);
 const timeOscillator = x => triangle(timeUnit(x));
 const triangle = x => Math.abs(((0.5 + x) % 1) - 0.5) * 2;
-const sine01 = x => { const result = Math.sin(x * Math.PI * 2) * 0.5 + 0.5; return result > 1 ? 1 : result; }
+const sine01 = x => Math.sin(x * Math.PI * 2) * 0.5 + 0.5;
 const timeSine = x => sine01(timeUnit(x));
 const testf = x => sine01(x * timeUnit(x) + 2000);
+
+let lineFunc = x => "#222";
+let xScreenScale;
+let yScreenScale;
 
 export function start() {
     canvas = document.getElementById('canvas');
@@ -32,6 +36,8 @@ export function start() {
     graph.ymax = yRange.max;
     graph.xrange = graph.xmax - graph.xmin;
     graph.yrange = graph.ymax - graph.ymin;
+    xScreenScale = new FunctionBuilder(x => x).setRange(graph.xmin, graph.xmax).getFx();
+    yScreenScale = new FunctionBuilder(x => x).setRange(graph.ymin, graph.ymax).getFx();
 
     mainLoop.setUpdate(mainUpdate);
     mainLoop.setDraw(mainDraw);
@@ -42,30 +48,58 @@ export function start() {
 
 function mainUpdate(deltaMs) {
     totalTimeMs += deltaMs;
-    var zoom = 1;
-    const modulator = new FunctionBuilder(x => x * sine01(x))
-        .setPeriod(3100)
-        .setRange(0.7, 0.9)
+    const temp = new FunctionBuilder(x => timeUnit(160000)).setRange(0, 1).getFx();
+
+    const modulator = new FunctionBuilder(x => triangle(x) * sine01(x))
+        .setPeriod(2.5)
+        .setRange(0.6, 0.9)
+        //.setPhaseShift(timeSine(110113))
         .getFx();
-    const sine1 = new FunctionBuilder(x => x * timeSine(33011))
-        .setPeriod(2377)
-        .setRange(0.4, 0.6)
+    const sine1 = new FunctionBuilder(x => sine01(x) * timeSine(133011))
+        .setPeriod(1)
+        .setRange(0.4, 0.8)
         .setFrequencyModulation(modulator)
-        //.setPhaseShift(timeSine(40000))
+        .setPhaseShift(timeSine(240000) * 2 - 1)
         .getFx();
-    const sine2 = new FunctionBuilder(x => x * sine01(x))
-        .setPeriod(2000)
+    const sine2 = new FunctionBuilder(x => sine01(x))
+        .setPeriod(2)
         .setFrequencyModulation(sine1)
-        //.setPhaseShift(timeSine(89600))
+        .setPhaseShift(timeSine(189600))
         .getFx();
-    graph.points = graphFunc(x => sine2(x), zoom);
+    lineFunc = sine2;
+    graph.points = graphFunc(x => lineFunc(x), 100);
+    //graph.points = graphFunc(x => lineFunc(x), 500);
 }
 
 function mainDraw(interpolationPercentage) {
     context.fillStyle = "#222222";
+    //context.fillStyle = husl.toHex(100, 0, bgColorFunc());
     context.fillRect(0, 0, canvas.width, canvas.height);
     if(graph.points) {
-        graphPoints(graph.points, "red");
+        //graphPoints(graph.points, "#901000");
+        //const colorFunc = (x,y) => husl.toHex(yScreenScale(y))
+        drawCircles(graph.points);
+    }
+}
+
+function drawCircles(points) {
+    const paddingPortion = 0.05;
+    const r = graph.xrange / points.length * (1 - paddingPortion / 2) / 2;
+    const huePhaseShift = new FunctionBuilder(x => timeUnit(800))
+        .setRange(0, graph.yrange)
+        .getFx();
+    const hueBase = new FunctionBuilder(y => y / graph.yrange).getFx(); 
+    const hue = new FunctionBuilder(x => hueBase(x))
+        .setPhaseShift(huePhaseShift(0))
+        .setRange(0, 360)
+        .getFx();
+    const xRangeBase = new FunctionBuilder(x => x / graph.xrange).getFx();
+    const lightness = new FunctionBuilder(x => timeSine(101001)).setRange(50, 65).getFx();
+    const saturation = new FunctionBuilder(x => timeSine(135000)).setRange(80, 100).getFx();
+    const color = y => husl.toHex(hue(y), saturation(y), lightness(y));
+    for(var i = 0; i < points.length; i++) {
+        const p = points[i];
+        context.circle(p.x, p.y, r, color(p.y));
     }
 }
 
@@ -118,11 +152,11 @@ function fmodulate(f, g) {
     return x => f(g * x);
 }
 
-function graphFunc(func, zoomFactor, resolution = 500) {
-    //var zoom = -1 * zoomFactor;
+function graphFuncOld(func, resolution = 500) {
     //resolution = Math.floor(new FunctionBuilder(x => timeSine(24701)).setRange(15, 40).getFx()(0));
     var points = [];
     for(var i = 0; i < resolution; i++) {
+        //note: there is an obviously better way of doing this. read before copy/paste
         var x = i / resolution;
         if(i == resolution - 1) {
             x = 1;
@@ -154,6 +188,28 @@ function graphPoints(points, color) {
     context.lineWidth = lineWidth;
     context.strokeStyle = strokeStyle;
     context.stroke();
+}
+
+function graphFunc(func, numberOfPoints = 20) {
+    if(numberOfPoints < 2) {
+        numberOfPoints = 2;
+    }
+    const makePoint = x => {
+        const y = func(x);
+        const point = {x: xScreenScale(x), y: yScreenScale(y)};
+        return point;
+    }
+    const n = numberOfPoints - 1;
+    const q = 1 / n;
+    const firstPoint = makePoint(0);
+    let result = [firstPoint];
+    for(var i = 1; i < n; i++) {
+        const point = makePoint(i * q);
+        result.push(point);
+    }
+    const lastPoint = makePoint(1 - Number.EPSILON);
+    result.push(lastPoint);
+    return result;
 }
 
 function getMinMaxForScreenPercent(percent, dimension) {

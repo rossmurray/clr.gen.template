@@ -1,0 +1,67 @@
+signals
+  sawtooth, sine, triangle (oscillator), etc
+  functions for composing, scaling, fmod
+  ability to add custom, named signals with function(t)
+  
+  
+need an easy way to say, eg:
+  color.hue = sawtooth.period(4300).scale(2).shift(sine.period(2000)).toRange(0, 360);
+
+
+persistent, drawable, updatable objects.
+  draw hierarchy?
+  
+  
+screen buffers?
+shaders?
+
+
+signals
+  sawtooth, sine, triangle, etc
+
+prefabs
+  pre-made effects like particles, spinners, etc
+
+scene
+  has an update method
+  has a collection of layers that get drawn in order
+  define a bunch of effects, place them on layers
+    possibly change layers and their contents over time
+
+layers
+  contains a collection of effects
+  gets draw and update calls from scene
+  has a blending mode property
+  there is a default layer type with easy creation api
+  
+effects
+  a basic format for something that gets update and draw calls
+  can be relative or absolute position
+  easy to add basic movement physics (acceleration, speed)
+  several build-in effects for common use cases:
+    container effect - for grouping several child effects for group control (position, etc)
+
+effects and layers should be one thing. probably just effects?
+
+function builder (shift, scale, modulate, etc)
+  need to be able to add conditionals or piecewise functions
+  clamp
+
+canvas util / extensions
+
+
+-=- wave -=-
+
+hypthetical usage examples:
+const sine2 = wave(x => Math.sin(x * Math.PI * 2)).frequency(2);
+const lightness = wave(sine).range(0, 100).frequency(1/100000).phase(0.5);
+const hue = wave.triangle.with(sine2).range(0, 360);
+const color = husl.toHex(hue(x), 100, lightness(x));
+const sine3 = wave.build({frequency: 3, range: [-1, 1], oldRange: [0, 1], fx: sine2})
+
+builtins like: wave.sine, wave.square, wave.linear, wave.time.triangle, wave.time.sine
+easy piecewise, combination of functions for different parts of the domain
+eliminate .getFx()
+wave() constructs a wave function-object from a function, wrapping it with the `y = a f(bx + c) + d` formula with identity values.
+shortcuts to frequency modded sines or given funcs with certain harmonics. eg: wave.generate.fmod(sine, [1, 1.5, 2]);
+some advanced operations that combine several common ones. join, split, cross, fade, filter?

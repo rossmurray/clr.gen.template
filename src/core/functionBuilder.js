@@ -11,19 +11,19 @@ const FunctionBuilder = class FunctionBuilder {
         this.D = 0;
     }
 
-    fMod(x) {
-        return 1;
+    frequencyMod(x) {
+        return identityFrequencyMod(x);
     }
 
     phaseMod(x) {
-        return 0;
+        return identityPhaseMod(x);
     }
 
     /**
      * Get a function of the form (x => y) that represents the output of this FunctionBuilder.
      */
     getFx() {
-        const B2 = x => this.B * this.fMod(x);
+        const B2 = x => this.B * this.frequencyMod(x);
         const C2 = x => this.C + this.phaseMod(x); 
         const fx = x => {
             const a = this.A;
@@ -38,6 +38,16 @@ const FunctionBuilder = class FunctionBuilder {
             //changed arbitrarily. so therefore it became bx + bc, which factors to: b(x + c).
         };
         return fx;
+    }
+
+    static Build(config) {
+        const frequency = config.frequency || 1;
+        const rangeMin = config.rangeMin || 0;
+        const rangeMax = config.rangeMax || 1;
+        const phaseShift = config.phaseShift || 0;
+        const fMod = config.frequencyModulator || identityFrequencyMod;
+        const phaseMod = config.phaseModulator || identityPhaseMod;
+        
     }
     
     /**
@@ -58,7 +68,7 @@ const FunctionBuilder = class FunctionBuilder {
         }
         this.A = a;
         this.D = newMin - (a * oldMin);
-        return this;
+        return copy(this);
     }
 
     /**
@@ -77,7 +87,7 @@ const FunctionBuilder = class FunctionBuilder {
         }
         this.A = a;
         this.D = 0 - (a * min);
-        return this;
+        return copy(this);
     }
 
     /**
@@ -88,35 +98,35 @@ const FunctionBuilder = class FunctionBuilder {
      */
     setPhaseShift(shiftPeriod) {
         this.C = -shiftPeriod;
-        return this;
+        return copy(this);
     }
 
     /**
-     * Set the frequency of this function, in hz (times-per-second). If the input fx
+     * Set the frequency of this function, ie periods/cycles per domain 0..1. If the input fx
      * is not frequency 1, then you must specify oldFrequency for the output to be correct.
      * Frequency and period are inverse representations of the same property. So the following
      * functions all overwrite each other: ofFrequency, setFrequency, ofPeriod, setPeriod.
      * Returns FunctionBuilder instance.
      */
-    setFrequency(frequencyHz, oldFrequency = 1) {
+    setFrequency(frequency, oldFrequency = 1) {
         if(oldFrequency == 0) {
             this.B = 0;
-            return this;
+            return copy(this);
         }
-        this.B = frequencyHz / oldFrequency;
-        return this;
+        this.B = frequency / oldFrequency;
+        return copy(this);
     }
 
     /**
-     * Set the period of this function, in ms. If the input fx is not period 1, then you
+     * Set the period of this function -- (. If the input fx is not period 1, then you
      * must specify oldPeriod for the output to be correct. Frequency and period are
      * inverse representations of the same property. So the following functions all
      * overwrite each other: ofFrequency, setFrequency, ofPeriod, setPeriod.
      * Returns FunctionBuilder instance.
      */
-    setPeriod(periodMs, oldPeriod = 1) {
-        this.B = oldPeriod * (periodMs / 1000);
-        return this;
+    setPeriod(period, oldPeriod = 1) {
+        this.B = oldPeriod * period;
+        return copy(this);
     }
 
     /**
@@ -132,10 +142,10 @@ const FunctionBuilder = class FunctionBuilder {
     ofFrequency(frequencyHz) {
         if(frequencyHz == 0) {
             this.B = 0;
-            return this;
+            return copy(this);
         }
         this.B = 1 / frequencyHz;
-        return this;
+        return copy(this);
     }
 
     /**
@@ -150,7 +160,7 @@ const FunctionBuilder = class FunctionBuilder {
      */
     ofPeriod(periodMs) {
         this.B = periodMs;
-        return this;
+        return copy(this);
     }
 
     /**
@@ -164,9 +174,9 @@ const FunctionBuilder = class FunctionBuilder {
      * Returns FunctionBuilder instance.
      */
     applyFrequencyModulation(modulatorFx) {
-        const carrier = this.fMod;
-        this.fMod = x => carrier(x) * modulatorFx(x);
-        return this;
+        const carrier = this.frequencyMod;
+        this.frequencyMod = x => carrier(x) * modulatorFx(x);
+        return copy(this);
     }
 
     /**
@@ -180,8 +190,8 @@ const FunctionBuilder = class FunctionBuilder {
      * Returns FunctionBuilder instance.
      */
     setFrequencyModulation(modulatorFx) {
-        this.fMod = modulatorFx;
-        return this;
+        this.frequencyMod = modulatorFx;
+        return copy(this);
     }
 
     /**
@@ -197,7 +207,7 @@ const FunctionBuilder = class FunctionBuilder {
     applyPhaseShiftModulation(modulatorFx) {
         const carrier = this.phaseMod;
         this.phaseMod = x => carrier(x) + modulatorFx(x);
-        return this;
+        return copy(this);
     }
 
     /**
@@ -212,8 +222,27 @@ const FunctionBuilder = class FunctionBuilder {
      */
     setPhaseShiftModulation(modulatorFx) {
         this.phaseMod = modulatorFx;
-        return this;
+        return copy(this);
     }
 };
+
+function copy(builder) {
+    const result = new FunctionBuilder(builder.rootfx);
+    result.A = builder.A;
+    result.B = builder.B;
+    result.C = builder.C;
+    result.D = builder.D;
+    result.frequencyMod = builder.frequencyMod;
+    result.phaseMod = builder.phaseMod;
+    return result;
+}
+
+function identityFrequencyMod(x) {
+    return 1;
+}
+
+function identityPhaseMod(x) {
+    return 0;
+}
 
 export default FunctionBuilder;
