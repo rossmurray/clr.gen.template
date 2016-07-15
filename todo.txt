@@ -65,3 +65,9 @@ eliminate .getFx()
 wave() constructs a wave function-object from a function, wrapping it with the `y = a f(bx + c) + d` formula with identity values.
 shortcuts to frequency modded sines or given funcs with certain harmonics. eg: wave.generate.fmod(sine, [1, 1.5, 2]);
 some advanced operations that combine several common ones. join, split, cross, fade, filter?
+
+learn more about:
+convolution
+wavelet transform
+lissajous curve
+dynamical systems
